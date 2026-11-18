@@ -1,0 +1,208 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --hud-primary: #00f3ff;
+  --hud-glow: rgba(0, 243, 255, 0.4);
+  --hud-border: rgba(0, 243, 255, 0.25);
+  --hud-bg: rgba(6, 13, 29, 0.85);
+  --hud-accent: #ff007f;
+}
+
+/* Theme variations */
+body[data-theme="cyan"] {
+  --hud-primary: #00f3ff;
+  --hud-glow: rgba(0, 243, 255, 0.4);
+  --hud-border: rgba(0, 243, 255, 0.25);
+  --hud-bg: rgba(6, 13, 29, 0.88);
+  --hud-accent: #1e66f5;
+}
+
+body[data-theme="green"] {
+  --hud-primary: #00ff88;
+  --hud-glow: rgba(0, 255, 136, 0.4);
+  --hud-border: rgba(0, 255, 136, 0.25);
+  --hud-bg: rgba(5, 20, 15, 0.88);
+  --hud-accent: #00f3ff;
+}
+
+body[data-theme="red"] {
+  --hud-primary: #ff1744;
+  --hud-glow: rgba(255, 23, 68, 0.45);
+  --hud-border: rgba(255, 23, 68, 0.3);
+  --hud-bg: rgba(24, 6, 10, 0.88);
+  --hud-accent: #ff9100;
+}
+
+body[data-theme="amber"] {
+  --hud-primary: #ffaa00;
+  --hud-glow: rgba(255, 170, 0, 0.4);
+  --hud-border: rgba(255, 170, 0, 0.25);
+  --hud-bg: rgba(20, 14, 4, 0.88);
+  --hud-accent: #00f3ff;
+}
+
+/* Sci-fi HUD Background Grid */
+.cyber-grid {
+  background-image: 
+    linear-gradient(to right, rgba(0, 243, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 243, 255, 0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Hologram Scanning Line Effect */
+.hologram-scanline {
+  position: relative;
+  overflow: hidden;
+}
+
+.hologram-scanline::before {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+  z-index: 20;
+  background-size: 100% 3px, 6px 100%;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.hologram-scanline::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--hud-primary), transparent);
+  box-shadow: 0 0 15px var(--hud-primary);
+  opacity: 0.8;
+  animation: hudScan 4s linear infinite;
+  pointer-events: none;
+  z-index: 21;
+}
+
+@keyframes hudScan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(1200px); }
+}
+
+/* Tactical HUD Corner Brackets */
+.hud-corner-box {
+  position: relative;
+  background: var(--hud-bg);
+  border: 1px solid var(--hud-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.hud-corner-box::before,
+.hud-corner-box::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: var(--hud-primary);
+  pointer-events: none;
+}
+
+.hud-corner-box::before {
+  top: -1px;
+  left: -1px;
+  border-top: 2px solid var(--hud-primary);
+  border-left: 2px solid var(--hud-primary);
+}
+
+.hud-corner-box::after {
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 2px solid var(--hud-primary);
+  border-right: 2px solid var(--hud-primary);
+}
+
+/* Clipped Corners (Sci-Fi Hexagonal Polygon) */
+.hud-chamfer {
+  clip-path: polygon(
+    0 12px,
+    12px 0,
+    calc(100% - 12px) 0,
+    100% 12px,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    12px 100%,
+    0 calc(100% - 12px)
+  );
+}
+
+.hud-cut-top-right {
+  clip-path: polygon(
+    0 0,
+    calc(100% - 16px) 0,
+    100% 16px,
+    100% 100%,
+    0 100%
+  );
+}
+
+.hud-cut-corners {
+  clip-path: polygon(
+    0 14px,
+    14px 0,
+    100% 0,
+    100% calc(100% - 14px),
+    calc(100% - 14px) 100%,
+    0 100%
+  );
+}
+
+/* Neon Glow Utilities */
+.text-glow {
+  text-shadow: 0 0 10px var(--hud-primary), 0 0 20px var(--hud-primary);
+}
+
+.box-glow {
+  box-shadow: 0 0 20px var(--hud-glow), inset 0 0 10px var(--hud-glow);
+}
+
+/* Custom Cyber Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #020617;
+  border-left: 1px solid rgba(0, 243, 255, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--hud-primary);
+  border-radius: 0px;
+  box-shadow: 0 0 10px var(--hud-primary);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ffffff;
+}
+
+/* Blinking cursor */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-blink {
+  animation: blink 0.9s infinite;
+}
+
+/* Floating animation */
+@keyframes hudFloat {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(0.5deg); }
+}
+
+.animate-float {
+  animation: hudFloat 5s ease-in-out infinite;
+}
