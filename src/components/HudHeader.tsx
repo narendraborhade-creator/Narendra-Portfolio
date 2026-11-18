@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ShieldAlert, 
   Volume2, 
@@ -14,6 +14,44 @@ import {
   FileText
 } from 'lucide-react';
 import { soundFX } from '../utils/soundEffects';
+
+// High-performance isolated HUD clock updating text directly via DOM ref
+const HudClock: React.FC = () => {
+  const clockRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let animId: number;
+    let lastUpdate = 0;
+
+    const updateClock = (time: number) => {
+      // Throttle updates to ~20fps for military precision without CPU drain
+      if (time - lastUpdate >= 50) {
+        lastUpdate = time;
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const mins = String(now.getMinutes()).padStart(2, '0');
+        const secs = String(now.getSeconds()).padStart(2, '0');
+        const ms = String(Math.floor(now.getMilliseconds() / 10)).padStart(2, '0');
+        if (clockRef.current) {
+          clockRef.current.textContent = `${hours}:${mins}:${secs}.${ms} IST`;
+        }
+      }
+      animId = requestAnimationFrame(updateClock);
+    };
+
+    animId = requestAnimationFrame(updateClock);
+    return () => cancelAnimationFrame(animId);
+  }, []);
+
+  return (
+    <div
+      ref={clockRef}
+      className="font-mono text-[var(--hud-primary)] font-bold tracking-widest min-w-[125px] text-right"
+    >
+      00:00:00.00 IST
+    </div>
+  );
+};
 
 interface HudHeaderProps {
   activeTheme: string;
@@ -34,24 +72,7 @@ export const HudHeader: React.FC<HudHeaderProps> = ({
   onToggleSound,
   onOpenTerminal,
 }) => {
-  const [timeStr, setTimeStr] = useState<string>('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  // Update high-tech military UTC clock
-  useEffect(() => {
-    const updateClock = () => {
-      const now = new Date();
-      const hours = String(now.getHours()).padStart(2, '0');
-      const mins = String(now.getMinutes()).padStart(2, '0');
-      const secs = String(now.getSeconds()).padStart(2, '0');
-      const ms = String(Math.floor(now.getMilliseconds() / 10)).padStart(2, '0');
-      setTimeStr(`${hours}:${mins}:${secs}.${ms} IST`);
-    };
-
-    updateClock();
-    const interval = setInterval(updateClock, 50);
-    return () => clearInterval(interval);
-  }, []);
 
   const navLinks = [
     { label: '// 01.IDENTITY', href: '#identity', icon: Crosshair },
@@ -110,9 +131,7 @@ export const HudHeader: React.FC<HudHeaderProps> = ({
             ))}
           </div>
 
-          <div className="font-mono text-[var(--hud-primary)] font-bold tracking-widest">
-            {timeStr}
-          </div>
+          <HudClock />
         </div>
       </div>
 
@@ -193,6 +212,7 @@ export const HudHeader: React.FC<HudHeaderProps> = ({
                   onThemeChange(t.id);
                 }}
                 title={t.title}
+                aria-label={`Switch theme to ${t.title}`}
                 className={`w-4 h-4 transition-transform ${
                   activeTheme === t.id ? 'scale-125 ring-1 ring-white' : 'opacity-60 hover:opacity-100'
                 }`}
@@ -208,6 +228,7 @@ export const HudHeader: React.FC<HudHeaderProps> = ({
               onOpenTerminal();
             }}
             onMouseEnter={() => soundFX.playHover()}
+            aria-label="Open AI Terminal Console"
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono bg-[var(--hud-primary)]/15 border border-[var(--hud-primary)] text-[var(--hud-primary)] hover:bg-[var(--hud-primary)] hover:text-black font-semibold transition-all shadow-[0_0_15px_rgba(0,243,255,0.2)]"
           >
             <TerminalIcon className="w-3.5 h-3.5" />
@@ -222,6 +243,7 @@ export const HudHeader: React.FC<HudHeaderProps> = ({
             }}
             onMouseEnter={() => soundFX.playHover()}
             title={soundEnabled ? 'Mute Cyber Audio' : 'Unmute Cyber Audio'}
+            aria-label={soundEnabled ? 'Mute Cyber Audio' : 'Unmute Cyber Audio'}
             className="p-2 border border-slate-700/60 text-slate-300 hover:text-[var(--hud-primary)] hover:border-[var(--hud-primary)]/60 transition-all"
           >
             {soundEnabled ? (
@@ -237,6 +259,7 @@ export const HudHeader: React.FC<HudHeaderProps> = ({
               soundFX.playClick();
               setMobileMenuOpen(!mobileMenuOpen);
             }}
+            aria-label="Toggle navigation menu"
             className="lg:hidden p-2 border border-slate-700 text-slate-300 hover:text-[var(--hud-primary)]"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}

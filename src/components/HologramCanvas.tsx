@@ -11,7 +11,20 @@ export const HologramCanvas: React.FC<HologramCanvasProps> = ({
   threatLevel = 'NORMAL'
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const materialsRef = useRef<{
+    coreMat: THREE.MeshBasicMaterial;
+    rings: THREE.MeshBasicMaterial[];
+    particleMat: THREE.PointsMaterial;
+  } | null>(null);
 
+  // Helper to compute effective hex color
+  const getHexColor = (theme: string, threat: 'NORMAL' | 'ELEVATED' | 'CRITICAL') => {
+    if (threat === 'CRITICAL') return '#ff1744';
+    if (threat === 'ELEVATED') return '#ffaa00';
+    return theme;
+  };
+
+  // 1. One-time WebGL Scene, Camera, Objects & Loop initialization
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -31,12 +44,7 @@ export const HologramCanvas: React.FC<HologramCanvasProps> = ({
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
 
-    // Pick base color according to threat level or theme
-    let hexColor = themeColor;
-    if (threatLevel === 'CRITICAL') hexColor = '#ff1744';
-    else if (threatLevel === 'ELEVATED') hexColor = '#ffaa00';
-
-    const baseColor = new THREE.Color(hexColor);
+    const initialColor = new THREE.Color(getHexColor(themeColor, threatLevel));
 
     // Group for all holographic elements
     const hologramGroup = new THREE.Group();
@@ -45,7 +53,7 @@ export const HologramCanvas: React.FC<HologramCanvasProps> = ({
     // 1. Inner Core: Wireframe Icosahedron
     const coreGeo = new THREE.IcosahedronGeometry(1.6, 2);
     const coreMat = new THREE.MeshBasicMaterial({
-      color: baseColor,
+      color: initialColor,
       wireframe: true,
       transparent: true,
       opacity: 0.35,
@@ -67,7 +75,7 @@ export const HologramCanvas: React.FC<HologramCanvasProps> = ({
     // 3. Orbital HUD Ring 1 (X/Z plane)
     const ring1Geo = new THREE.RingGeometry(2.2, 2.25, 64);
     const ring1Mat = new THREE.MeshBasicMaterial({
-      color: baseColor,
+      color: initialColor,
       side: THREE.DoubleSide,
       transparent: true,
       opacity: 0.7,
@@ -79,7 +87,7 @@ export const HologramCanvas: React.FC<HologramCanvasProps> = ({
     // 4. Orbital HUD Ring 2 (Tilted with notches)
     const ring2Geo = new THREE.RingGeometry(2.6, 2.64, 48);
     const ring2Mat = new THREE.MeshBasicMaterial({
-      color: baseColor,
+      color: initialColor,
       side: THREE.DoubleSide,
       transparent: true,
       opacity: 0.45,
@@ -92,7 +100,7 @@ export const HologramCanvas: React.FC<HologramCanvasProps> = ({
     // 5. Orbital HUD Ring 3 (Outer scan ring)
     const ring3Geo = new THREE.RingGeometry(3.0, 3.03, 32);
     const ring3Mat = new THREE.MeshBasicMaterial({
-      color: baseColor,
+      color: initialColor,
       side: THREE.DoubleSide,
       transparent: true,
       opacity: 0.25,
@@ -118,7 +126,7 @@ export const HologramCanvas: React.FC<HologramCanvasProps> = ({
 
     particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
     const particleMat = new THREE.PointsMaterial({
-      color: baseColor,
+      color: initialColor,
       size: 0.05,
       transparent: true,
       opacity: 0.75,
@@ -127,25 +135,42 @@ export const HologramCanvas: React.FC<HologramCanvasProps> = ({
     const particleSystem = new THREE.Points(particleGeo, particleMat);
     hologramGroup.add(particleSystem);
 
-    // Mouse Parallax Interaction
+    // Store references to materials for in-place color mutations
+    materialsRef.current = {
+      coreMat,
+      rings: [ring1Mat, ring2Mat, ring3Mat],
+      particleMat,
+    };
+
+    // Cache container bounds to prevent getBoundingClientRect layout thrashing
+    let cachedRect = container.getBoundingClientRect();
+    const updateCachedRect = () => {
+      if (container) {
+        cachedRect = container.getBoundingClientRect();
+      }
+    };
+
+    // Mouse Parallax Interaction (layout thrashing eliminated)
     let mouseX = 0;
     let mouseY = 0;
     let targetX = 0;
     let targetY = 0;
 
     const handleMouseMove = (event: MouseEvent) => {
-      const rect = container.getBoundingClientRect();
-      const x = (event.clientX - rect.left) / rect.width - 0.5;
-      const y = (event.clientY - rect.top) / rect.height - 0.5;
+      if (cachedRect.width === 0 || cachedRect.height === 0) return;
+      const x = (event.clientX - cachedRect.left) / cachedRect.width - 0.5;
+      const y = (event.clientY - cachedRect.top) / cachedRect.height - 0.5;
       targetX = x * 1.5;
       targetY = y * 1.5;
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    window.addEventListener('scroll', updateCachedRect, { passive: true });
 
     // Window resize handler
     const handleResize = () => {
       if (!container) return;
+      updateCachedRect();
       camera.aspect = container.clientWidth / container.clientHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(container.clientWidth, container.clientHeight);
@@ -197,6 +222,7 @@ export const HologramCanvas: React.FC<HologramCanvasProps> = ({
     // Cleanup
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('scroll', updateCachedRect);
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationFrameId);
 
@@ -217,7 +243,19 @@ export const HologramCanvas: React.FC<HologramCanvasProps> = ({
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
+      materialsRef.current = null;
     };
+  }, []); // Run only once to establish WebGL context
+
+  // 2. Reactive color update without tearing down WebGL scene
+  useEffect(() => {
+    if (!materialsRef.current) return;
+    const nextHex = getHexColor(themeColor, threatLevel);
+    const newColor = new THREE.Color(nextHex);
+
+    materialsRef.current.coreMat.color.set(newColor);
+    materialsRef.current.rings.forEach((ringMat) => ringMat.color.set(newColor));
+    materialsRef.current.particleMat.color.set(newColor);
   }, [themeColor, threatLevel]);
 
   return (

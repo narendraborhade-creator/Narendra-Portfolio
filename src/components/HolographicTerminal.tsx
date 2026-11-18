@@ -45,6 +45,18 @@ export const HolographicTerminal: React.FC<HolographicTerminalProps> = ({
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // A11Y-01: Global Escape key listener to close modal
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        soundFX.playClick();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [isOpen, onClose]);
+
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 150);
@@ -115,46 +127,41 @@ Education: MCA Cyber Security (NMIET Pune, 7.8 CGPA) | BCA (DY Patil, 7.5 CGPA)
 Status: Active Candidate / Available for SOC & AppSec Engineering Roles.`;
         resType = 'success';
       } else if (lower === 'skills') {
-        responseText = `TACTICAL COMPETENCIES:
-1. SOC & SIEM: Splunk Enterprise, SPL Queries, Wireshark, Deep Packet Inspection (DPI), MITRE ATT&CK, Snort IDS.
-2. VAPT & AppSec: OWASP Top 10, Nmap, smbclient, enum4linux, LFI, SQLi, XSS, PrivEsc, DNS Security (DMARC/SPF).
-3. Languages & Frameworks: Python 3, TypeScript, JavaScript, FastAPI, React, Node.js, Three.js, Gemini API.
-4. Systems & Cloud: GCP, Linux (Debian/RHEL), Docker, Git, PostgreSQL, MongoDB, SHA-256 Forensics.`;
+        responseText = `TACTICAL COMPETENCIES:\n` +
+          PORTFOLIO_DATA.skills.map((s, idx) => 
+            `${idx + 1}. ${s.category} [${s.hudId}]:\n   ${s.skills.map(sk => `${sk.name} (${sk.level}%)`).join(', ')}`
+          ).join('\n\n');
         resType = 'success';
       } else if (lower === 'splunk') {
         responseText = `SPLUNK ENTERPRISE SIEM LAB:
 • Dataset: 360,000+ Boss of the SOC (BOTS v1) events.
 • Attack Detection: Automated Acunetix scanners, Blind SQLi, reflected XSS, brute force floods.
-• Correlation: Correlated Wireshark PCAPs with endpoint Apache & Suricata logs to build attack timelines.`;
+• Correlation: Correlated Wireshark PCAPs with endpoint Apache & Suricata logs to build attack timelines.
+• Sample SPL Query: ${PORTFOLIO_DATA.siemSamples[0].splQuery}`;
         resType = 'success';
       } else if (lower === 'offsec') {
-        responseText = `OFFSEC PROVING GROUNDS (STAPLER BOX):
-• Recon: Nmap TCP/UDP port mapping + SMB enum4linux RID user enumeration.
-• Foothold: Vulnerable WordPress Advanced Video Embedder plugin -> LFI config leak (wp-config.php).
-• RCE: MySQL direct auth -> INTO OUTFILE PHP shell drop on port 12380.
-• Root: .bash_history inspection -> Sudo privileges escalation -> UID=0(root) confirmed.`;
+        responseText = `OFFSEC PROVING GROUNDS (STAPLER BOX):\n` +
+          PORTFOLIO_DATA.offSecPhases.map(p => 
+            `• Phase 0${p.phase} [${p.tool}]: ${p.name}\n  Action: ${p.action}\n  Technique: ${p.technique}\n  Result: ${p.outputSummary}`
+          ).join('\n\n');
         resType = 'success';
       } else if (lower === 'projects') {
-        responseText = `FEATURED SYSTEMS:
-1. Aegis 3D Safe Browser: 3D security browser with SSRF sandbox & Gemini 2.5 AI Copilot [https://aegisscans.dev]
-2. Splunk BOTS SIEM Lab: 360k+ event threat hunting & forensic reconstruction.
-3. Bug-Hunter & Net-Visual-Analyzer: AI static analysis + DMARC/SPF posture validator.
-4. OSINT Scanner & ML IDS: Multi-source OSINT + Isolation Forest anomaly detection.
-5. Manga.for-me: Privacy-centric reader with anti-tracking proxy [https://manga-for-me.vercel.app]`;
+        responseText = `FEATURED SYSTEMS:\n` +
+          PORTFOLIO_DATA.projects.map((p, idx) => 
+            `${idx + 1}. ${p.title} [${p.status} - ${p.hudCode}]\n   Stack: ${p.techStack.join(', ')}\n   Summary: ${p.tagline}${p.liveUrl ? `\n   Live: ${p.liveUrl}` : ''}`
+          ).join('\n\n');
         resType = 'success';
       } else if (lower === 'experience') {
-        responseText = `MISSION LOGS:
-• Codec Technologies (Jul-Sep 2026): Cyber Security Intern - Deep packet inspection, Wireshark traffic analysis, log triage.
-• CodeAlpha (Jan 2026): Cyber Security Intern - Attack surface assessment, defensive vulnerability mitigation.
-• Sqrock IT Solutions & NextGen AI (2025-2026): Python automation scripting & technical communication.`;
+        responseText = `MISSION LOGS:\n` +
+          PORTFOLIO_DATA.experience.map(e => 
+            `• ${e.role} @ ${e.company} (${e.period} - ${e.location})\n  Tags: ${e.technologies.join(', ')}\n  Key Impact: ${e.highlights[0]}`
+          ).join('\n\n');
         resType = 'success';
       } else if (lower === 'certifications') {
-        responseText = `VERIFIED CERTIFICATIONS:
-1. SOC Analyst & Cyber Security Fundamentals (Codec Tech, 47h 56m)
-2. Trust and Security with Google Cloud (Simplilearn SkillUp)
-3. Protection from Browser Attacks & System Security (Vodafone Idea / VOIS)
-4. Ethical Hacking & Cyber Security (Google Developers Launchpad)
-5. Ethical Hacking Workshop (VaultofCodes)`;
+        responseText = `VERIFIED CERTIFICATIONS:\n` +
+          PORTFOLIO_DATA.certifications.map((c, idx) => 
+            `${idx + 1}. [${c.credentialId}] ${c.title}\n   Issuer: ${c.issuer} | Date: ${c.date} | Status: ${c.status}`
+          ).join('\n\n');
         resType = 'success';
       } else if (lower.startsWith('scan')) {
         responseText = `[INITIATING TACTICAL PASSIVE SCAN]
@@ -174,28 +181,38 @@ RESULT: No critical anomalies detected. Posture Score: 96/100 (SECURE)`;
         resType = 'success';
       } else if (lower.includes('contact') || lower.includes('email') || lower.includes('phone')) {
         responseText = `TRANSMISSION DETAILS:
-• Email: narendra.via.mail@gmail.com
-• Phone: +91 8503041687
-• LinkedIn: https://www.linkedin.com/in/narendra-borhade-developer
-• GitHub: https://github.com/Creator-Naren`;
+• Email: ${PORTFOLIO_DATA.personal.email}
+• Phone: ${PORTFOLIO_DATA.personal.phone}
+• LinkedIn: ${PORTFOLIO_DATA.personal.linkedin}
+• GitHub: ${PORTFOLIO_DATA.personal.githubPrimary}`;
         resType = 'success';
       } else {
         // Natural Language Synthesis or Gemini query
         if (apiKey) {
           try {
-            // Live Gemini API call if key is provided
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+            // Secure Gemini API invocation using x-goog-api-key header and structured system instruction
+            const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 
+                'Content-Type': 'application/json',
+                'x-goog-api-key': apiKey.trim()
+              },
               body: JSON.stringify({
-                contents: [{
+                systemInstruction: {
                   parts: [{
-                    text: `You are AEGIS-CYBER-CORE, the futuristic HUD holographic AI assistant for Narendra Borhade (Cybersecurity Specialist & SOC Analyst). Answer the following query in a concise, authoritative, cyberpunk HUD tone using Narendra's resume context:
-Resume Summary: ${PORTFOLIO_DATA.personal.summary}
-Projects: ${JSON.stringify(PORTFOLIO_DATA.projects.map(p => ({ title: p.title, desc: p.description })))}
+                    text: `You are AEGIS-CYBER-CORE, the futuristic HUD holographic AI assistant for Narendra Borhade (Cybersecurity Specialist & SOC Analyst).
+Context:
+Summary: ${PORTFOLIO_DATA.personal.summary}
+Projects: ${JSON.stringify(PORTFOLIO_DATA.projects.map(p => ({ title: p.title, desc: p.description, stack: p.techStack, live: p.liveUrl })))}
 Skills: ${JSON.stringify(PORTFOLIO_DATA.skills)}
-User Query: "${trimmed}"`
+Certifications: ${JSON.stringify(PORTFOLIO_DATA.certifications)}
+Education: ${JSON.stringify(PORTFOLIO_DATA.education)}
+Provide concise, authoritative, cyberpunk HUD answers.`
                   }]
+                },
+                contents: [{
+                  role: 'user',
+                  parts: [{ text: trimmed }]
                 }]
               })
             });

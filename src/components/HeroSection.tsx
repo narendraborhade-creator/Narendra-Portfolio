@@ -35,7 +35,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   // Typewriter effect for titles
   useEffect(() => {
     const currentFullText = subtitles[subtitleIndex];
-    let timer: NodeJS.Timeout;
+    let timer: ReturnType<typeof setTimeout>;
 
     if (!isDeleting && displayText === currentFullText) {
       timer = setTimeout(() => setIsDeleting(true), 2200);
@@ -59,13 +59,15 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   const handleDownloadResume = () => {
     soundFX.playSuccess();
     // Creates a download trigger for the ATS Markdown resume
-    const element = document.createElement("a");
     const file = new Blob([PORTFOLIO_DATA.personal.summary + "\n\nFor full details, visit " + window.location.href], {type: 'text/markdown'});
-    element.href = URL.createObjectURL(file);
+    const url = URL.createObjectURL(file);
+    const element = document.createElement("a");
+    element.href = url;
     element.download = "Narendra_Borhade_Resume_2026_ATS.md";
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
+    URL.revokeObjectURL(url);
   };
 
   return (
