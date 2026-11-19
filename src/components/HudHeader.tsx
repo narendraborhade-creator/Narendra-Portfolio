@@ -76,11 +76,12 @@ export const HudHeader: React.FC<HudHeaderProps> = ({
 
   const navLinks = [
     { label: '// 01.IDENTITY', href: '#identity', icon: Crosshair },
-    { label: '// 02.PROJECTS', href: '#projects', icon: FolderGit2 },
-    { label: '// 03.SIEM LAB', href: '#siem-lab', icon: ShieldAlert },
-    { label: '// 04.SKILLS', href: '#skills', icon: Cpu },
-    { label: '// 05.MISSIONS', href: '#experience', icon: FileText },
-    { label: '// 06.TRANSMIT', href: '#contact', icon: Send },
+    { label: '// 02.BENTO', href: '#bento', icon: FolderGit2 },
+    { label: '// 03.PROJECTS', href: '#projects', icon: FolderGit2 },
+    { label: '// 04.SIEM LAB', href: '#siem-lab', icon: ShieldAlert },
+    { label: '// 05.SKILLS', href: '#skills', icon: Cpu },
+    { label: '// 06.MISSIONS', href: '#experience', icon: FileText },
+    { label: '// 07.TRANSMIT', href: '#contact', icon: Send },
   ];
 
   const handleNavClick = (href: string) => {
