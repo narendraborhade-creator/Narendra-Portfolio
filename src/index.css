@@ -51,10 +51,12 @@ body[data-theme="amber"] {
   background-size: 40px 40px;
 }
 
-/* Hologram Scanning Line Effect */
+/* Hologram Scanning Line Effect (Overlay) */
 .hologram-scanline {
-  position: relative;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
+  pointer-events: none;
 }
 
 .hologram-scanline::before {
@@ -87,6 +89,37 @@ body[data-theme="amber"] {
 @keyframes hudScan {
   0% { transform: translateY(-100%); }
   100% { transform: translateY(1200px); }
+}
+
+/* Dedicated Terminal & Modal Scroll Area */
+.terminal-scroll-area {
+  overflow-y: scroll !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--hud-primary) rgba(2, 6, 23, 0.9);
+}
+
+.terminal-scroll-area::-webkit-scrollbar {
+  width: 8px;
+  display: block !important;
+}
+
+.terminal-scroll-area::-webkit-scrollbar-track {
+  background: rgba(2, 6, 23, 0.95);
+  border-left: 1px solid var(--hud-border);
+}
+
+.terminal-scroll-area::-webkit-scrollbar-thumb {
+  background: var(--hud-primary);
+  border-radius: 2px;
+  box-shadow: 0 0 10px var(--hud-primary);
+}
+
+.terminal-scroll-area::-webkit-scrollbar-thumb:hover {
+  background: #ffffff;
+  box-shadow: 0 0 15px #ffffff;
 }
 
 /* Tactical HUD Corner Brackets */
@@ -167,6 +200,11 @@ body[data-theme="amber"] {
 }
 
 /* Custom Cyber Scrollbar */
+html {
+  scrollbar-color: var(--hud-primary) #020617;
+  scrollbar-width: thin;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

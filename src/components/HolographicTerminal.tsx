@@ -5,7 +5,10 @@ import {
   Send, 
   Sparkles, 
   Cpu, 
-  Key
+  Key,
+  ArrowDown,
+  ChevronsUp,
+  ChevronsDown
 } from 'lucide-react';
 import { PORTFOLIO_DATA } from '../data/portfolioData';
 import { soundFX } from '../utils/soundEffects';
@@ -29,6 +32,7 @@ export const HolographicTerminal: React.FC<HolographicTerminalProps> = ({
   const [apiKey, setApiKey] = useState('');
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isScrolledUp, setIsScrolledUp] = useState(false);
   const [history, setHistory] = useState<CommandHistoryItem[]>([
     {
       type: 'system',
@@ -42,10 +46,10 @@ export const HolographicTerminal: React.FC<HolographicTerminalProps> = ({
     },
   ]);
 
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const logContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // A11Y-01: Global Escape key listener to close modal
+  // Global Escape key listener to close modal
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
@@ -57,15 +61,44 @@ export const HolographicTerminal: React.FC<HolographicTerminalProps> = ({
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [isOpen, onClose]);
 
+  // Focus input when opened
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 150);
     }
   }, [isOpen]);
 
+  // Scroll to bottom smoothly helper
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTo({
+        top: logContainerRef.current.scrollHeight,
+        behavior,
+      });
+    }
+  };
+
+  const scrollToTop = (behavior: ScrollBehavior = 'smooth') => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTo({
+        top: 0,
+        behavior,
+      });
+    }
+  };
+
+  // Detect whether user has scrolled up from the bottom
+  const handleScroll = () => {
+    const el = logContainerRef.current;
+    if (!el) return;
+    const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setIsScrolledUp(distanceToBottom > 40);
+  };
+
+  // Auto-scroll to bottom on new history additions
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [history]);
+    scrollToBottom('smooth');
+  }, [history, isProcessing]);
 
   if (!isOpen) return null;
 
@@ -190,7 +223,6 @@ RESULT: No critical anomalies detected. Posture Score: 96/100 (SECURE)`;
         // Natural Language Synthesis or Gemini query
         if (apiKey) {
           try {
-            // Secure Gemini API invocation using x-goog-api-key header and structured system instruction
             const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', {
               method: 'POST',
               headers: { 
@@ -245,19 +277,41 @@ Type "help" to view specific command modules or ask about "splunk", "offsec", or
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       handleCommand(inputVal);
+    } else if (e.key === 'PageUp') {
+      e.preventDefault();
+      logContainerRef.current?.scrollBy({ top: -250, behavior: 'smooth' });
+    } else if (e.key === 'PageDown') {
+      e.preventDefault();
+      logContainerRef.current?.scrollBy({ top: 250, behavior: 'smooth' });
+    }
+  };
+
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      soundFX.playClick();
+      onClose();
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md">
+    <div 
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="terminal-title"
+      onClick={handleBackdropClick}
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6 bg-black/85 backdrop-blur-md overflow-y-auto"
+    >
       {/* Holographic HUD Terminal Window */}
-      <div className="w-full max-w-4xl h-[620px] max-h-[92vh] flex flex-col hud-corner-box border-2 border-[var(--hud-primary)] bg-black/95 shadow-[0_0_60px_rgba(0,243,255,0.25)] relative overflow-hidden">
+      <div className="w-full max-w-4xl h-[640px] max-h-[92vh] flex flex-col hud-corner-box border-2 border-[var(--hud-primary)] bg-black/95 shadow-[0_0_60px_rgba(0,243,255,0.25)] relative overflow-hidden my-auto">
         
+        {/* Holographic Scanline Overlay (Non-blocking, pointer-events: none) */}
+        <div className="hologram-scanline" aria-hidden="true" />
+
         {/* Terminal Header */}
-        <div className="flex items-center justify-between px-4 py-2.5 bg-slate-950 border-b border-[var(--hud-border)] select-none">
+        <div className="flex items-center justify-between px-4 py-2.5 bg-slate-950 border-b border-[var(--hud-border)] select-none relative z-30">
           <div className="flex items-center gap-2.5">
             <TerminalIcon className="w-4 h-4 text-[var(--hud-primary)] animate-pulse" />
-            <span className="font-hud text-xs sm:text-sm font-bold text-white tracking-wider">
+            <span id="terminal-title" className="font-hud text-xs sm:text-sm font-bold text-white tracking-wider">
               AEGIS-CYBER-CORE // HOLOGRAPHIC AI CONSOLE
             </span>
             <span className="hidden sm:inline px-1.5 py-0.2 bg-[var(--hud-primary)]/15 border border-[var(--hud-primary)]/40 text-[9px] font-mono text-[var(--hud-primary)]">
@@ -265,21 +319,52 @@ Type "help" to view specific command modules or ask about "splunk", "offsec", or
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {/* Quick Scroll Nav Controls in Header */}
+            <div className="flex items-center gap-1 border border-slate-800 bg-black/50 px-1 py-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  soundFX.playClick();
+                  scrollToTop('smooth');
+                }}
+                className="p-1 text-slate-400 hover:text-[var(--hud-primary)] transition-colors"
+                title="Scroll to top of terminal log"
+                aria-label="Scroll to top of log"
+              >
+                <ChevronsUp className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  soundFX.playClick();
+                  scrollToBottom('smooth');
+                }}
+                className="p-1 text-slate-400 hover:text-[var(--hud-primary)] transition-colors"
+                title="Scroll to bottom of terminal log"
+                aria-label="Scroll to bottom of log"
+              >
+                <ChevronsDown className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
             <button
+              type="button"
               onClick={() => setShowApiKeyInput(!showApiKeyInput)}
-              className="text-[10px] font-mono text-slate-400 hover:text-[var(--hud-primary)] flex items-center gap-1 border border-slate-800 px-2 py-0.5"
+              className="text-[10px] font-mono text-slate-400 hover:text-[var(--hud-primary)] flex items-center gap-1 border border-slate-800 px-2 py-1"
             >
               <Key className="w-3 h-3 text-cyan-400" />
-              <span>{apiKey ? 'GEMINI KEY: ACTIVE' : 'SET GEMINI KEY'}</span>
+              <span className="hidden sm:inline">{apiKey ? 'GEMINI KEY: ACTIVE' : 'SET GEMINI KEY'}</span>
             </button>
 
             <button
+              type="button"
               onClick={() => {
                 soundFX.playClick();
                 onClose();
               }}
-              className="p-1 text-slate-400 hover:text-red-400 hover:bg-red-950/40 transition-colors"
+              className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-950/40 transition-colors"
+              aria-label="Close Holographic Terminal"
             >
               <X className="w-4 h-4" />
             </button>
@@ -288,7 +373,7 @@ Type "help" to view specific command modules or ask about "splunk", "offsec", or
 
         {/* Optional Gemini API Key Drawer */}
         {showApiKeyInput && (
-          <div className="px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex items-center gap-2 text-xs font-mono">
+          <div className="px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex items-center gap-2 text-xs font-mono relative z-30">
             <Sparkles className="w-4 h-4 text-[var(--hud-primary)] shrink-0" />
             <span className="text-slate-300 shrink-0">Google Gemini API Key:</span>
             <input
@@ -299,6 +384,7 @@ Type "help" to view specific command modules or ask about "splunk", "offsec", or
               className="flex-1 bg-black border border-slate-700 px-2 py-1 text-cyan-300 font-mono text-xs outline-none focus:border-[var(--hud-primary)]"
             />
             <button
+              type="button"
               onClick={() => setShowApiKeyInput(false)}
               className="px-2 py-1 bg-[var(--hud-primary)] text-black font-bold text-[10px]"
             >
@@ -307,8 +393,16 @@ Type "help" to view specific command modules or ask about "splunk", "offsec", or
           </div>
         )}
 
-        {/* Terminal Output Log Area */}
-        <div className="flex-1 p-4 overflow-y-auto font-mono text-xs space-y-3 hologram-scanline">
+        {/* Terminal Output Log Area (Guaranteed Scrollable with Cyan Cyber Scrollbar) */}
+        <div 
+          ref={logContainerRef}
+          onScroll={handleScroll}
+          tabIndex={0}
+          role="log"
+          aria-live="polite"
+          aria-label="Terminal output scrollable log"
+          className="flex-1 p-4 terminal-scroll-area font-mono text-xs space-y-3 relative z-10 select-text focus:outline-none"
+        >
           {history.map((item, idx) => (
             <div key={idx} className="leading-relaxed">
               {item.type === 'user' ? (
@@ -338,16 +432,31 @@ Type "help" to view specific command modules or ask about "splunk", "offsec", or
               <span>INTERROGATING CYBER KNOWLEDGE BASE...</span>
             </div>
           )}
-
-          <div ref={bottomRef} />
         </div>
 
+        {/* Floating "Jump to Latest" Button when Scrolled Up */}
+        {isScrolledUp && (
+          <button
+            type="button"
+            onClick={() => {
+              soundFX.playClick();
+              scrollToBottom('smooth');
+            }}
+            className="absolute bottom-16 right-6 z-30 px-3 py-1.5 bg-[var(--hud-primary)] text-black font-hud text-[11px] font-bold flex items-center gap-1.5 shadow-[0_0_20px_var(--hud-glow)] hover:bg-white transition-all cursor-pointer animate-pulse"
+            aria-label="Scroll to bottom of terminal output"
+          >
+            <ArrowDown className="w-3.5 h-3.5" />
+            <span>SCROLL TO LATEST</span>
+          </button>
+        )}
+
         {/* Quick Command Suggestion Chips */}
-        <div className="px-4 py-2 bg-slate-950/90 border-t border-slate-800 flex flex-wrap items-center gap-1.5 text-[10px] font-mono">
+        <div className="px-4 py-2 bg-slate-950/90 border-t border-slate-800 flex flex-wrap items-center gap-1.5 text-[10px] font-mono relative z-20">
           <span className="text-slate-500">QUICK CMDS:</span>
           {['help', 'identity', 'splunk', 'offsec', 'skills', 'projects', 'experience', 'contact', 'clear'].map((cmd) => (
             <button
               key={cmd}
+              type="button"
               onClick={() => handleCommand(cmd)}
               className="px-2 py-0.5 bg-black border border-slate-800 text-slate-300 hover:text-[var(--hud-primary)] hover:border-[var(--hud-primary)] transition-colors"
             >
@@ -357,7 +466,7 @@ Type "help" to view specific command modules or ask about "splunk", "offsec", or
         </div>
 
         {/* Terminal Input Bar */}
-        <div className="p-3 bg-black border-t border-[var(--hud-border)] flex items-center gap-2">
+        <div className="p-3 bg-black border-t border-[var(--hud-border)] flex items-center gap-2 relative z-20">
           <span className="text-[var(--hud-primary)] font-mono font-bold pl-2">&gt;</span>
           <input
             ref={inputRef}
@@ -365,10 +474,11 @@ Type "help" to view specific command modules or ask about "splunk", "offsec", or
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type a command (help, splunk, offsec) or natural question..."
+            placeholder="Type a command (help, splunk, offsec) or natural question... (PgUp/PgDn to scroll)"
             className="flex-1 bg-transparent text-cyan-200 font-mono text-xs sm:text-sm outline-none placeholder:text-slate-600"
           />
           <button
+            type="button"
             onClick={() => handleCommand(inputVal)}
             disabled={!inputVal.trim() || isProcessing}
             className="px-3 py-1.5 bg-[var(--hud-primary)] text-black font-hud text-xs font-bold flex items-center gap-1.5 hover:bg-white transition-all disabled:opacity-40"
