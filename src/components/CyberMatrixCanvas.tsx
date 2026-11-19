@@ -8,6 +8,12 @@ export const CyberMatrixCanvas: React.FC<CyberMatrixCanvasProps> = ({
   color = '#00f3ff',
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const colorRef = useRef<string>(color);
+
+  // Keep colorRef updated without triggering particle recreation
+  useEffect(() => {
+    colorRef.current = color;
+  }, [color]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -16,19 +22,25 @@ export const CyberMatrixCanvas: React.FC<CyberMatrixCanvasProps> = ({
     if (!ctx) return;
 
     let animId: number;
-    let width = (canvas.width = window.innerWidth);
-    let height = (canvas.height = window.innerHeight);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-    const handleResize = () => {
+    const resize = () => {
       if (!canvas) return;
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
+      ctx.scale(dpr, dpr);
     };
 
-    window.addEventListener('resize', handleResize);
+    resize();
+    window.addEventListener('resize', resize);
 
-    // Particle nodes
-    const nodeCount = Math.min(Math.floor((width * height) / 18000), 75);
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const nodeCount = Math.min(Math.floor((w * h) / 20000), 70);
     const nodes: Array<{
       x: number;
       y: number;
@@ -39,8 +51,8 @@ export const CyberMatrixCanvas: React.FC<CyberMatrixCanvasProps> = ({
 
     for (let i = 0; i < nodeCount; i++) {
       nodes.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
+        x: Math.random() * w,
+        y: Math.random() * h,
         vx: (Math.random() - 0.5) * 0.4,
         vy: (Math.random() - 0.5) * 0.4,
         size: Math.random() * 2 + 1,
@@ -58,7 +70,11 @@ export const CyberMatrixCanvas: React.FC<CyberMatrixCanvasProps> = ({
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
 
     const render = () => {
-      ctx.clearRect(0, 0, width, height);
+      const curW = window.innerWidth;
+      const curH = window.innerHeight;
+      ctx.clearRect(0, 0, curW, curH);
+
+      const activeColor = colorRef.current;
 
       // Update and draw nodes
       for (let i = 0; i < nodes.length; i++) {
@@ -66,11 +82,11 @@ export const CyberMatrixCanvas: React.FC<CyberMatrixCanvasProps> = ({
         n.x += n.vx;
         n.y += n.vy;
 
-        if (n.x < 0 || n.x > width) n.vx *= -1;
-        if (n.y < 0 || n.y > height) n.vy *= -1;
+        if (n.x < 0 || n.x > curW) n.vx *= -1;
+        if (n.y < 0 || n.y > curH) n.vy *= -1;
 
         // Draw node
-        ctx.fillStyle = color;
+        ctx.fillStyle = activeColor;
         ctx.globalAlpha = 0.35;
         ctx.beginPath();
         ctx.arc(n.x, n.y, n.size, 0, Math.PI * 2);
@@ -84,7 +100,7 @@ export const CyberMatrixCanvas: React.FC<CyberMatrixCanvasProps> = ({
           const dist = Math.sqrt(dx * dx + dy * dy);
 
           if (dist < 120) {
-            ctx.strokeStyle = color;
+            ctx.strokeStyle = activeColor;
             ctx.globalAlpha = (1 - dist / 120) * 0.15;
             ctx.lineWidth = 0.8;
             ctx.beginPath();
@@ -99,7 +115,7 @@ export const CyberMatrixCanvas: React.FC<CyberMatrixCanvasProps> = ({
         const mdy = n.y - mouseY;
         const mdist = Math.sqrt(mdx * mdx + mdy * mdy);
         if (mdist < 140) {
-          ctx.strokeStyle = color;
+          ctx.strokeStyle = activeColor;
           ctx.globalAlpha = (1 - mdist / 140) * 0.35;
           ctx.lineWidth = 1;
           ctx.beginPath();
@@ -116,15 +132,16 @@ export const CyberMatrixCanvas: React.FC<CyberMatrixCanvasProps> = ({
     animId = requestAnimationFrame(render);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('resize', resize);
       window.removeEventListener('mousemove', handleMouseMove);
       cancelAnimationFrame(animId);
     };
-  }, [color]);
+  }, []);
 
   return (
     <canvas
       ref={canvasRef}
+      aria-hidden="true"
       className="fixed inset-0 pointer-events-none z-0 opacity-40 select-none"
     />
   );

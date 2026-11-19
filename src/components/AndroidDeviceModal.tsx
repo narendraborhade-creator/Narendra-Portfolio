@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, 
   Wifi, 
@@ -31,18 +31,58 @@ export const AndroidDeviceModal: React.FC<AndroidDeviceModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'siem' | 'contact'>('overview');
   const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Global Escape key listener to close modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        soundFX.playClick();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  // Clean up any pending clipboard timer on unmount
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    };
+  }, []);
 
   if (!isOpen) return null;
 
-  const handleCopyEmail = () => {
-    navigator.clipboard.writeText(PORTFOLIO_DATA.personal.email);
-    soundFX.playSuccess();
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyEmail = async () => {
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(PORTFOLIO_DATA.personal.email);
+        soundFX.playSuccess();
+        setCopied(true);
+        if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+        copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
+      }
+    } catch {
+      // Fallback
+    }
+  };
+
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      soundFX.playClick();
+      onClose();
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="android-modal-title"
+      onClick={handleBackdropClick}
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md"
+    >
       {/* Outer wrapper */}
       <div className="relative flex flex-col items-center">
         
@@ -50,13 +90,16 @@ export const AndroidDeviceModal: React.FC<AndroidDeviceModalProps> = ({
         <div className="w-full max-w-[380px] flex items-center justify-between pb-2 px-2 text-xs font-mono text-slate-300">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-            <span className="font-bold text-emerald-400">PIXEL 8 PRO // HUD EDITION</span>
+            <span id="android-modal-title" className="font-bold text-emerald-400">
+              PIXEL 8 PRO // HUD EDITION
+            </span>
           </div>
           <button
             onClick={() => {
               soundFX.playClick();
               onClose();
             }}
+            aria-label="Close Android App Preview"
             className="p-1 text-slate-400 hover:text-white bg-slate-900 border border-slate-700"
           >
             <X className="w-4 h-4" />

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 
 interface Card3DProps {
   children: React.ReactNode;
@@ -12,53 +12,71 @@ export const Card3D: React.FC<Card3DProps> = ({
   glowColor = 'rgba(0, 243, 255, 0.25)',
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [rotateX, setRotateX] = useState(0);
-  const [rotateY, setRotateY] = useState(0);
-  const [spotlightPos, setSpotlightPos] = useState({ x: 50, y: 50, opacity: 0 });
+  const spotlightRef = useRef<HTMLDivElement>(null);
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+  useEffect(() => {
+    const card = cardRef.current;
+    const spotlight = spotlightRef.current;
+    if (!card) return;
 
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
+    // Check prefers-reduced-motion
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (mediaQuery.matches) return;
 
-    const rX = ((y - centerY) / centerY) * -10;
-    const rY = ((x - centerX) / centerX) * 10;
+    let rafId: number | null = null;
 
-    setRotateX(rX);
-    setRotateY(rY);
-    setSpotlightPos({
-      x: (x / rect.width) * 100,
-      y: (y / rect.height) * 100,
-      opacity: 1,
-    });
-  };
+    const handleMouseMove = (e: MouseEvent) => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
 
-  const handleMouseLeave = () => {
-    setRotateX(0);
-    setRotateY(0);
-    setSpotlightPos((prev) => ({ ...prev, opacity: 0 }));
-  };
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+
+        const rX = ((y - centerY) / centerY) * -8;
+        const rY = ((x - centerX) / centerX) * 8;
+
+        card.style.transform = `perspective(1000px) rotateX(${rX.toFixed(2)}deg) rotateY(${rY.toFixed(2)}deg)`;
+        if (spotlight) {
+          spotlight.style.opacity = '1';
+          spotlight.style.background = `radial-gradient(350px circle at ${x}px ${y}px, ${glowColor}, transparent 80%)`;
+        }
+      });
+    };
+
+    const handleMouseLeave = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg)';
+      if (spotlight) {
+        spotlight.style.opacity = '0';
+      }
+    };
+
+    card.addEventListener('mousemove', handleMouseMove, { passive: true });
+    card.addEventListener('mouseleave', handleMouseLeave, { passive: true });
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      card.removeEventListener('mousemove', handleMouseMove);
+      card.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }, [glowColor]);
 
   return (
     <div
       ref={cardRef}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      className={`relative transition-transform duration-200 ease-out preserve-3d group ${className}`}
+      className={`relative will-change-transform group ${className}`}
       style={{
-        transform: `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`,
+        transformStyle: 'preserve-3d',
+        transition: 'transform 0.15s ease-out',
       }}
     >
-      {/* 21st.dev Spotlight Glow Cursor Tracker */}
+      {/* 21st.dev Spotlight Glow Overlay */}
       <div
-        className="pointer-events-none absolute -inset-px rounded-none opacity-0 transition-opacity duration-300 group-hover:opacity-100 z-10"
-        style={{
-          background: `radial-gradient(400px circle at ${spotlightPos.x}% ${spotlightPos.y}%, ${glowColor}, transparent 80%)`,
-        }}
+        ref={spotlightRef}
+        className="pointer-events-none absolute -inset-px z-10 opacity-0 transition-opacity duration-250 select-none"
       />
       {children}
     </div>
